@@ -52,5 +52,11 @@ class AudioBuffer(QtCore.QObject):
     def handle_new_data(self, floatdata, input_time, status):
         self.ringbuffer.push(floatdata)
         self.set_newdata(floatdata.shape[1])
-        self.new_data_available.emit(floatdata)
+
+
+        # Kingson: after folowing line runs, the handle_new_data function, and only this fuction, in the level.py, spectrum.py, scope.py, 
+        # and spectrogram.py  runs in order to extract the data in the buffer. However the correspond widget need to be opened in the 
+        # main window. For example, if the scope dock is not opened, then the data will not emits to the scope.py
+        self.new_data_available.emit(floatdata) 
+
         self.lastDataTime = input_time

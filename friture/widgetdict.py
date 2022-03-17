@@ -25,6 +25,7 @@ from friture.scope import Scope_Widget
 from friture.generator import Generator_Widget
 from friture.delay_estimator import Delay_Estimator_Widget
 from friture.longlevels import LongLevelWidget
+from friture.scope_fft import Scope_Widget1
 
 widgets = [
     {'Id': 1, "Class": Scope_Widget, "Name": "Scope"},
@@ -33,7 +34,8 @@ widgets = [
     {'Id': 4, "Class": OctaveSpectrum_Widget, "Name": "Octave Spectrum"},
     {'Id': 5, "Class": Generator_Widget, "Name": "Generator"},
     {'Id': 6, "Class": Delay_Estimator_Widget, "Name": "Delay Estimator"},
-    {'Id': 7, "Class": LongLevelWidget, "Name": "Long-time levels"}
+    {'Id': 7, "Class": LongLevelWidget, "Name": "Long-time levels"},
+    {'Id': 8, "Class": Scope_Widget1, "Name": "FFT Scope IAH"}
 ]
 
 
@@ -43,3 +45,6 @@ def widgetIds():
 
 def getWidgetById(widgetId):
     return next(widget for widget in widgets if widget["Id"] == widgetId)
+
+
+

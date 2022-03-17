@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -22,13 +23,14 @@ import logging
 from PyQt5 import QtWidgets
 from PyQt5.QtQuickWidgets import QQuickWidget
 
-from numpy import log10, where, sign, arange, zeros
+from numpy import log10, where, sign, arange, zeros, ones, sin, array
 
 from friture.store import GetStore
 from friture.audiobackend import SAMPLING_RATE
 from friture.scope_data import Scope_Data
 from friture.curve import Curve
 from friture.qml_tools import qml_url, raise_if_error
+
 
 SMOOTH_DISPLAY_TIMER_PERIOD_MS = 25
 DEFAULT_TIMERANGE = 2 * SMOOTH_DISPLAY_TIMER_PERIOD_MS
@@ -82,6 +84,9 @@ class Scope_Widget(QtWidgets.QWidget):
         self.time = zeros(10)
         self.y = zeros(10)
         self.y2 = zeros(10)
+        # self.Bridge=bridge()
+
+        # self.fft1=Spectrum_Widget
 
     def on_status_changed(self, status):
         if status == QQuickWidget.Error:
@@ -126,7 +131,7 @@ class Scope_Widget(QtWidgets.QWidget):
             shift = 0
         shift += trig_search_start
         datarange = width
-        floatdata = floatdata[:, shift - datarange // 2: shift + datarange // 2]
+        floatdata = floatdata[:, shift - datarange // 2: shift + datarange // 2] # the number of elements in floatdata become datarange here. select the portion of data that meet the trigger condition
 
         self.y = floatdata[0, :]
         if twoChannels:
@@ -144,14 +149,29 @@ class Scope_Widget(QtWidgets.QWidget):
                 self.y2 = None
 
         self.time = (arange(len(self.y)) - datarange // 2) / float(SAMPLING_RATE)
+        """
+        datarange=240, datarange=width, width is number of samples.
+                time = self.timerange * 1e-3  #self.timerange is the time set by user in ms.
+                width = int(time * SAMPLING_RATE)
 
-        scaled_t = (self.time * 1e3 + self.timerange/2.) / self.timerange
-        scaled_y = 1. - (self.y + 1) / 2.
+        len(self.y)=240
+        SAMPLING_RATE=48000
+
+        """
+
+        scaled_t = (self.time * 1e3 + self.timerange/2.) / self.timerange  #make sure in the end the x axis is going from 0 to 1
+        scaled_y = 1. - (self.y + 1) / 2.  # if the range of y is (-1:1),make sure in the end, the y axis range is (2:0)
         self._curve.setData(scaled_t, scaled_y)
+       
 
         if self.y2 is not None:
             scaled_y2 = 1. - (self.y2 + 1) / 2.
             self._curve_2.setData(scaled_t, scaled_y2)
+
+
+        # self.fft1.handle_new_data(self, floatdata)
+        # # data=self.fft1.buff1
+
 
     # method
     def canvasUpdate(self):

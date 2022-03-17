@@ -18,7 +18,7 @@
 # along with Friture.  If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt5 import QtWidgets
-from numpy import log10, argmax, zeros, arange, floor, float64
+from numpy import log10, argmax, zeros, arange, floor, float64, argmin, abs,array
 from friture.audioproc import audioproc  # audio processing class
 from friture.spectrum_settings import (Spectrum_Settings_Dialog,  # settings dialog
                                        DEFAULT_FFT_SIZE,
@@ -35,6 +35,8 @@ import friture.plotting.frequency_scales as fscales
 from friture.audiobackend import SAMPLING_RATE
 from friture.spectrumPlotWidget import SpectrumPlotWidget
 from friture_extensions.exp_smoothing_conv import pyx_exp_smoothed_value_numpy
+from friture.databridge import bridge
+
 
 
 class Spectrum_Widget(QtWidgets.QWidget):
@@ -88,6 +90,17 @@ class Spectrum_Widget(QtWidgets.QWidget):
         # initialize the settings dialog
         self.settings_dialog = Spectrum_Settings_Dialog(self)
 
+        self.freq1=1000. # frequency I am interested in to extract fft amp
+        self.freq2=1010. 
+        self.Bridge=bridge()
+        # self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
+        # self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
+        # self.buff1=zeros(100) # save the fft amp to be ploted
+        # self.buff2=zeros(100)
+
+      
+
+
     # method
     def set_buffer(self, buffer):
         self.audiobuffer = buffer
@@ -133,7 +146,8 @@ class Spectrum_Widget(QtWidgets.QWidget):
 
                 self.old_index += int(needed)
 
-            # compute the widget data
+            # compute the widget 
+            # Kingson: I believe the self.dispbuffers below are used to display the fading red plot in the graph
             sp1 = pyx_exp_smoothed_value_numpy(self.kernel, self.alpha, sp1n, self.dispbuffers1)
             sp2 = pyx_exp_smoothed_value_numpy(self.kernel, self.alpha, sp2n, self.dispbuffers2)
             # store result for next computation
@@ -155,7 +169,38 @@ class Spectrum_Widget(QtWidgets.QWidget):
             i = argmax(dB_spectrogram)
             fmax = self.freq[i]
 
+
+
+            ############################{
+        # self.freq1=1000. # frequency I am interested in to extract fft amp
+        # self.freq2=1010. 
+        # self.freq_idx1=argmin(self.freq1-self.freq)
+        # self.freq_idx2=argmin(self.freq2-self.freq)
+        # self.buff1=zeros(100) # save the fft amp to be ploted
+        # self.buff2=zeros(100)
+
+            self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
+            # self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
+
+            point1=dB_spectrogram[self.freq_idx1]
+            self.Bridge.write( point1)
+            # self.buff2=self.buff1
+            # self.buff1[-1]=point1
+            # for i in range(len(self.buff1)-1):
+            #     self.buff1[i]=self.buff2[i+1]
+
+            # probe=self.buff1
+
+            ###################################}
+
+
+
             self.PlotZoneSpect.setdata(self.freq, dB_spectrogram, fmax)
+            # a=array([0, 0.5, 1])
+            # b=array([-1,0.4, 1])
+            # b=1-(b+1)/2.
+            # self.someclass._curve.setData(a, b)
+
 
     # method
     def canvasUpdate(self):
