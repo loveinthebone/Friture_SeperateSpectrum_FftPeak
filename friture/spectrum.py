@@ -35,7 +35,7 @@ import friture.plotting.frequency_scales as fscales
 from friture.audiobackend import SAMPLING_RATE
 from friture.spectrumPlotWidget import SpectrumPlotWidget
 from friture_extensions.exp_smoothing_conv import pyx_exp_smoothed_value_numpy
-from friture.databridge import bridge
+# from friture.databridge import bridge
 
 
 
@@ -92,7 +92,7 @@ class Spectrum_Widget(QtWidgets.QWidget):
 
         self.freq1=1000. # frequency I am interested in to extract fft amp
         self.freq2=1010. 
-        self.Bridge=bridge()
+    
         # self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
         # self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
         # self.buff1=zeros(100) # save the fft amp to be ploted
@@ -179,11 +179,11 @@ class Spectrum_Widget(QtWidgets.QWidget):
         # self.buff1=zeros(100) # save the fft amp to be ploted
         # self.buff2=zeros(100)
 
-            self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
-            # self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
+            # self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
+            # # self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
 
-            point1=dB_spectrogram[self.freq_idx1]
-            self.Bridge.write( point1)
+            # point1=dB_spectrogram[self.freq_idx1]
+            # self.Bridge.write( point1)
             # self.buff2=self.buff1
             # self.buff1[-1]=point1
             # for i in range(len(self.buff1)-1):

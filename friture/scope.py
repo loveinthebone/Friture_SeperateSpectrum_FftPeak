@@ -188,6 +188,14 @@ class Scope_Widget(QtWidgets.QWidget):
         self.timerange = timerange
         self._scope_data.horizontal_axis.setRange(-self.timerange/2., self.timerange/2.)
 
+    def setmin(self, value):
+        self.spec_min = value
+        self.PlotZoneSpect.setspecrange(self.spec_min, self.spec_max)
+
+    def setmax(self, value):
+        self.spec_max = value
+        self.PlotZoneSpect.setspecrange(self.spec_min, self.spec_max)
+
     # slot
     def settings_called(self, checked):
         self.settings_dialog.show()

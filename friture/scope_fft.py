@@ -19,6 +19,7 @@
 # along with Friture.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import scipy.signal as signal
 
 from PyQt5 import QtWidgets
 from PyQt5.QtQuickWidgets import QQuickWidget
@@ -48,6 +49,9 @@ SMOOTH_DISPLAY_TIMER_PERIOD_MS = 25
 DEFAULT_TIMERANGE = 2 * SMOOTH_DISPLAY_TIMER_PERIOD_MS
 DEFAULT_FREQUENCY1 = 1000
 DEFAULT_FREQUENCY2 = 1500
+
+DEFAULT_MIN=-180
+DEFAULT_MAX=10
 
 
 class Scope_Widget1(QtWidgets.QWidget):
@@ -96,9 +100,9 @@ class Scope_Widget1(QtWidgets.QWidget):
 
         # self.set_timerange(DEFAULT_TIMERANGE)
 
-        self.time = zeros(10)
-        self.y = zeros(10)
-        self.y2 = zeros(10)
+        # self.time = zeros(10)
+        # self.y = zeros(10)
+        # self.y2 = zeros(10)
 
 
 
@@ -121,7 +125,7 @@ class Scope_Widget1(QtWidgets.QWidget):
         # self.response_time = DEFAULT_RESPONSE_TIME
         self.freq = self.proc.get_freq_scale()
 
-        self.buffersize=3000
+        self.buffersize=3000 #how many fft points to save
         self.buff1=zeros(self.buffersize)
         self.buff2=zeros(self.buffersize)
         self.buff0=zeros(self.buffersize)
@@ -130,9 +134,10 @@ class Scope_Widget1(QtWidgets.QWidget):
         self.set_frequency1(DEFAULT_FREQUENCY1)
         self.set_frequency2(DEFAULT_FREQUENCY2)
 
-        self.RANGE_MIN=0 
-        self.RANGE_MAX=0.00000004 # unit is volt here
-        self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
+        self.RANGE_MIN=DEFAULT_MIN # self.RANGE_MIN will set the minimum value of the y axis in the GUI
+        self.RANGE_MAX=DEFAULT_MAX # unit is volt here
+        # self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
+        self._scope_data.vertical_axis.setRange( self.RANGE_MIN, self.RANGE_MAX)# This is simply the range of the label in y axis, has no real relation to the y data.
 
 
     def on_status_changed(self, status):
@@ -213,16 +218,26 @@ class Scope_Widget1(QtWidgets.QWidget):
         #check self.freq[self.freq_idx1] , see if it is close to 1000
 
         data=sp1n[self.freq_idx1]
+        data=self.log_spectrogram(data)
         
 
         self.buff0=self.buff1
         self.buff1[-1]=data
-        for i in range(len(self.buff1)-1):
-            self.buff1[i]=self.buff0[i+1]
+        self.buff1[:-1]=self.buff0[1:]
+        # for i in range(len(self.buff1)-1):
+        #     self.buff1[i]=self.buff0[i+1]
 
         b=self.buff1
         a=arange(self.buffersize)
-
+        
+        # b_min=min(b)
+        # b_max=max(b)
+        
+        #Kingson: trying to plot in autoscale in y axis. 
+        # The y axis ticker is set in above in this function: self._scope_data.vertical_axis.setRange
+        # self.RANGE_MIN=b_min*1.2 
+        # self.RANGE_MAX=b_min*1.2
+        # self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
 
 
 
@@ -237,14 +252,30 @@ class Scope_Widget1(QtWidgets.QWidget):
         b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
 
         scaled_b=1-(b+1)/2.  #turn scaled_b into the range (1,0)
+
+        # Design the Butterworth filter using 
+        # signal.butter and output='sos'
+        # fs = self.buffersize
+        # sos = signal.butter(3, 100, 'lp', fs=3000, output='sos') 
+        # #https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+
+        # # Filter the signal by the filter using signal.sosfilt
+        # # Use signal.sosfiltfilt to get output inphase with input
+        # filtered = signal.sosfiltfilt(sos, scaled_b)
+        # self._curve.setData(scaled_a, filtered)
+
+
         self._curve.setData(scaled_a, scaled_b)
 #####################################################
         if twoChannels:
             data2=sp2n[self.freq_idx2]
+            data2=self.log_spectrogram(data2)
+
             self.buff2=self.buff3
             self.buff3[-1]=data2
-            for i in range(len(self.buff3)-1):
-                self.buff3[i]=self.buff2[i+1]
+            # for i in range(len(self.buff3)-1):
+            #     self.buff3[i]=self.buff2[i+1]
+            self.buff3[:-1]=self.buff2[1:]
 
             b=self.buff3
             a=arange(self.buffersize)
@@ -253,7 +284,12 @@ class Scope_Widget1(QtWidgets.QWidget):
 
             b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
             scaled_b=1-(b+1)/2.
+
             self._curve_2.setData(scaled_a, scaled_b)
+
+            # filtered = signal.sosfiltfilt(sos, scaled_b)
+            # self._curve_2.setData(scaled_a, filtered)
+
 
         # dBscope = False
         # if dBscope:
@@ -313,6 +349,16 @@ class Scope_Widget1(QtWidgets.QWidget):
         self._scope_data.vertical_axis.setRange(0., 1.)
 
 
+    def set_yrange(self, ymin, ymax):
+        # change the y axis tickers in the GUI
+        self.RANGE_MIN=ymin # self.RANGE_MIN will set the minimum value of the y axis in the GUI
+        self.RANGE_MAX=ymax # unit is volt here, 1.2 here is to make sure the data peaks are not cropped
+        self._scope_data.vertical_axis.setRange(self.RANGE_MIN, self.RANGE_MAX)# Make the unit in the plot to be mV
+
+
+        # Make sure the output data points are scaled properly to match the y axis values.
+
+
     # slot
     def set_frequency1(self, frequency):
         self.frequency1 = frequency
@@ -323,6 +369,24 @@ class Scope_Widget1(QtWidgets.QWidget):
         self.frequency2 = frequency
         self._curve_2.name = "Ch2 at "+str(self.frequency2) +" Hz"
         # self._scope_data.horizontal_axis.setRange(0, self.timerange)
+
+    def setmin(self, value):
+        self.RANGE_MIN = value # dB
+        self.set_yrange(self.RANGE_MIN, self.RANGE_MAX)
+
+    def setmax(self, value):
+        self.RANGE_MAX = value  # dB
+        self.set_yrange(self.RANGE_MIN, self.RANGE_MAX)
+
+
+    def log_spectrogram(self, sp):
+        # Note: implementing the log10 of the array in Cython did not bring
+        # any speedup.
+        # Idea: Instead of computing the log of the data, I could pre-compute
+        # a list of values associated with the colormap, and then do a search...
+        epsilon = 1e-30
+        return 10. * log10(sp + epsilon)
+
 
     # slot
     def settings_called(self, checked):
@@ -346,14 +410,6 @@ class Scope_Settings_Dialog(QtWidgets.QDialog):
 
         self.formLayout = QtWidgets.QFormLayout(self)
 
-        # self.doubleSpinBox_timerange = QtWidgets.QDoubleSpinBox(self)
-        # self.doubleSpinBox_timerange.setDecimals(1)
-        # self.doubleSpinBox_timerange.setMinimum(0.1)
-        # self.doubleSpinBox_timerange.setMaximum(1000.0)
-        # self.doubleSpinBox_timerange.setProperty("value", DEFAULT_TIMERANGE)
-        # self.doubleSpinBox_timerange.setObjectName("doubleSpinBox_timerange")
-        # self.doubleSpinBox_timerange.setSuffix(" s")
-
         self.doubleSpinBox_frequency1 = QtWidgets.QDoubleSpinBox(self)
         self.doubleSpinBox_frequency1.setDecimals(0)
         self.doubleSpinBox_frequency1.setMinimum(20)
@@ -370,9 +426,27 @@ class Scope_Settings_Dialog(QtWidgets.QDialog):
         self.doubleSpinBox_frequency2.setObjectName("doubleSpinBox_frequency2")
         self.doubleSpinBox_frequency2.setSuffix(" Hz")
 
+        self.doubleSpinBox_min = QtWidgets.QDoubleSpinBox(self)
+        self.doubleSpinBox_min.setDecimals(1)
+        self.doubleSpinBox_min.setMinimum(-220)
+        self.doubleSpinBox_min.setMaximum(10)
+        self.doubleSpinBox_min.setProperty("value", DEFAULT_MIN)
+        self.doubleSpinBox_min.setObjectName("doubleSpinBox_min")
+        self.doubleSpinBox_min.setSuffix(" dB")
+
+        self.doubleSpinBox_max = QtWidgets.QDoubleSpinBox(self)
+        self.doubleSpinBox_max.setDecimals(1)
+        self.doubleSpinBox_max.setMinimum(-220)
+        self.doubleSpinBox_max.setMaximum(10)
+        self.doubleSpinBox_max.setProperty("value", DEFAULT_MAX)
+        self.doubleSpinBox_max.setObjectName("doubleSpinBox_max")
+        self.doubleSpinBox_max.setSuffix(" dB")
+
         # self.formLayout.addRow("Time range:", self.doubleSpinBox_timerange)
-        self.formLayout.addRow("freq1 at Ch1:", self.doubleSpinBox_frequency1)
-        self.formLayout.addRow("freq2 at Ch2:", self.doubleSpinBox_frequency2)
+        self.formLayout.addRow("Target frequency at Ch1:", self.doubleSpinBox_frequency1)
+        self.formLayout.addRow("Target frequency at Ch2:", self.doubleSpinBox_frequency2)
+        self.formLayout.addRow("Min level: ", self.doubleSpinBox_min)
+        self.formLayout.addRow("Max level: ", self.doubleSpinBox_max)
 
         self.setLayout(self.formLayout)
 
@@ -380,11 +454,18 @@ class Scope_Settings_Dialog(QtWidgets.QDialog):
         self.doubleSpinBox_frequency1.valueChanged.connect(self.parent().set_frequency1)
         self.doubleSpinBox_frequency2.valueChanged.connect(self.parent().set_frequency2)
 
+        self.doubleSpinBox_min.valueChanged.connect(self.parent().setmin)
+        self.doubleSpinBox_max.valueChanged.connect(self.parent().setmax)
+
+
     # method
     def saveState(self, settings):
         # settings.setValue("timeRange", self.doubleSpinBox_timerange.value())
         settings.setValue("frequency1", self.doubleSpinBox_frequency1.value())
         settings.setValue("frequency2", self.doubleSpinBox_frequency2.value())
+
+        settings.setValue("RANGE_MIN", self.doubleSpinBox_min.value())
+        settings.setValue("RANGE_MAX", self.doubleSpinBox_max.value())
 
     # method
     def restoreState(self, settings):
@@ -394,5 +475,11 @@ class Scope_Settings_Dialog(QtWidgets.QDialog):
         frequency1 = settings.value("frequency1", DEFAULT_FREQUENCY1, type=float)
         self.doubleSpinBox_frequency1.setValue(frequency1)
 
-        frequency2 = settings.value("frequency2", DEFAULT_FREQUENCY1, type=float)
+        frequency2 = settings.value("frequency2", DEFAULT_FREQUENCY2, type=float)
         self.doubleSpinBox_frequency2.setValue(frequency2)
+
+        RANGE_MIN = settings.value("RANGE_MIN", DEFAULT_MIN, type=float)
+        self.doubleSpinBox_min.setValue(RANGE_MIN)
+
+        RANGE_MAX = settings.value("RANGE_MAX", DEFAULT_MAX, type=float)
+        self.doubleSpinBox_max.setValue(RANGE_MAX)
