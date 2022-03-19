@@ -19,12 +19,13 @@
 # along with Friture.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import scipy.signal as signal
+# import scipy.signal as signal
+from friture_extensions.exp_smoothing_conv import pyx_exp_smoothed_value_numpy
 
 from PyQt5 import QtWidgets
 from PyQt5.QtQuickWidgets import QQuickWidget
 
-from numpy import log10, where, sign, arange, zeros, ones, sin, array,float64,amax
+from numpy import log10, where, sign, arange, zeros, ones, sin, array,float64,amax,floor
 
 from friture.store import GetStore
 from friture.audiobackend import SAMPLING_RATE
@@ -138,7 +139,10 @@ class Scope_Widget1(QtWidgets.QWidget):
         self.RANGE_MAX=DEFAULT_MAX # unit is volt here
         # self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
         self._scope_data.vertical_axis.setRange( self.RANGE_MIN, self.RANGE_MAX)# This is simply the range of the label in y axis, has no real relation to the y data.
-
+       
+        self.old_index = 0
+        self.overlap = 3. / 4.
+        self.dual_channels = True
 
     def on_status_changed(self, status):
         if status == QQuickWidget.Error:
@@ -148,144 +152,191 @@ class Scope_Widget1(QtWidgets.QWidget):
     # method
     def set_buffer(self, buffer):
         self.audiobuffer = buffer
+        self.old_index = self.audiobuffer.ringbuffer.offset
 
     def handle_new_data(self, floatdata):
         
-        floatdata = self.audiobuffer.data(self.fft_size)
+        # floatdata = self.audiobuffer.data(self.fft_size) #This way only the data in the ring buffer is used,
+        #which is smaller than the self.fft_size
+
+        #####################
+        # we need to maintain an index of where we are in the buffer
+        index = self.audiobuffer.ringbuffer.offset
+
+        available = index - self.old_index
+
+        if available < 0:
+            # ringbuffer must have grown or something...
+            available = 0
+            self.old_index = index
+
+        # if we have enough data to add a frequency column in the time-frequency plane, compute it
+        needed = self.fft_size * (1. - self.overlap)
+        realizable = int(floor(available / needed))
+
+        twoChannels = True
+        if realizable > 0:
+            sp1n = zeros((len(self.freq), realizable), dtype=float64)
+            sp2n = zeros((len(self.freq), realizable), dtype=float64)
+
+            for i in range(realizable):
+                floatdata = self.audiobuffer.data_indexed(self.old_index, self.fft_size)
+
+                # first channel
+                # FFT transform
+                sp1n[:, i] = self.proc.analyzelive(floatdata[0, :])
+
+                if self.dual_channels and floatdata.shape[0] > 1:
+                    # second channel for comparison
+                    sp2n[:, i] = self.proc.analyzelive(floatdata[1, :])
+
+                self.old_index += int(needed)
+
+            # compute the widget 
+            # Kingson: I believe the self.dispbuffers below are used to display the fading red plot in the graph
+            # sp1 = pyx_exp_smoothed_value_numpy(self.kernel, self.alpha, sp1n, self.dispbuffers1)
+            # sp2 = pyx_exp_smoothed_value_numpy(self.kernel, self.alpha, sp2n, self.dispbuffers2)
+            # # store result for next computation
+            # self.dispbuffers1 = sp1
+            # self.dispbuffers2 = sp2
+
+
+        #############################
+
 
         # time = self.timerange * 1e-3
         # width = int(time * SAMPLING_RATE)
         # # basic trigger capability on leading edge
         # floatdata = self.audiobuffer.data(2 * width)
 
-        twoChannels = False
-        if floatdata.shape[0] > 1:
-            twoChannels = True
+            # twoChannels = False
+            if floatdata.shape[0] > 1:
+                twoChannels = True
 
-        if twoChannels and len(self._scope_data.plot_items) == 1:
-            self._scope_data.add_plot_item(self._curve_2)
-        elif not twoChannels and len(self._scope_data.plot_items) == 2:
-            self._scope_data.remove_plot_item(self._curve_2)
+            if twoChannels and len(self._scope_data.plot_items) == 1:
+                self._scope_data.add_plot_item(self._curve_2)
+            elif not twoChannels and len(self._scope_data.plot_items) == 2:
+                self._scope_data.remove_plot_item(self._curve_2)
 
-        # # trigger on the first channel only
-        # triggerdata = floatdata[0, :]
-        # # trigger on half of the waveform
-        # trig_search_start = width // 2
-        # trig_search_stop = -width // 2
-        # triggerdata = triggerdata[trig_search_start: trig_search_stop]
+            # # trigger on the first channel only
+            # triggerdata = floatdata[0, :]
+            # # trigger on half of the waveform
+            # trig_search_start = width // 2
+            # trig_search_stop = -width // 2
+            # triggerdata = triggerdata[trig_search_start: trig_search_stop]
 
-        # trigger_level = floatdata.max() * 2. / 3.
-        # trigger_pos = where((triggerdata[:-1] < trigger_level) * (triggerdata[1:] >= trigger_level))[0]
+            # trigger_level = floatdata.max() * 2. / 3.
+            # trigger_pos = where((triggerdata[:-1] < trigger_level) * (triggerdata[1:] >= trigger_level))[0]
 
-        # if len(trigger_pos) == 0:
-        #     return
+            # if len(trigger_pos) == 0:
+            #     return
 
-        # if len(trigger_pos) > 0:
-        #     shift = trigger_pos[0]
-        # else:
-        #     shift = 0
-        # shift += trig_search_start
+            # if len(trigger_pos) > 0:
+            #     shift = trigger_pos[0]
+            # else:
+            #     shift = 0
+            # shift += trig_search_start
 
-        # datarange = width
-        # floatdata = floatdata[:, shift - datarange // 2: shift + datarange // 2] # the number of elements in floatdata become datarange here. select the portion of data that meet the trigger condition
+            # datarange = width
+            # floatdata = floatdata[:, shift - datarange // 2: shift + datarange // 2] # the number of elements in floatdata become datarange here. select the portion of data that meet the trigger condition
 
-        self.y = floatdata[0, :]
-        if twoChannels:
-            self.y2 = floatdata[1, :]
-        else:
-            self.y2 = None
-
-
-        sp1n = zeros(self.fft_size, dtype=float64)
-        sp2n = zeros(self.fft_size, dtype=float64)
-        sp1n = self.proc.analyzelive(floatdata[0, :])
-        if twoChannels:
-            # second channel for comparison
-            sp2n = self.proc.analyzelive(floatdata[1, :])
-
-        # if twoChannels:
-        #     dB_spectrogram =  self.log_spectrogram(sp1n)
-        #     dB_spectrogram2= self.log_spectrogram(sp2n)
-        # else:
-        #     dB_spectrogram = self.log_spectrogram(sp1n) 
-
-    ###########################################################################
-        self.freq1=self.frequency1 # frequency I am interested in to extract fft amp ####
-        self.freq2=self.frequency2                                                   ####
-    ###########################################################################
-        self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
-        self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
-        #check self.freq[self.freq_idx1] , see if it is close to 1000
-
-        data=sp1n[self.freq_idx1]
-        data=self.log_spectrogram(data)
-        
-
-        self.buff0=self.buff1
-        self.buff1[-1]=data
-        self.buff1[:-1]=self.buff0[1:]
-        # for i in range(len(self.buff1)-1):
-        #     self.buff1[i]=self.buff0[i+1]
-
-        b=self.buff1
-        a=arange(self.buffersize)
-        
-        # b_min=min(b)
-        # b_max=max(b)
-        
-        #Kingson: trying to plot in autoscale in y axis. 
-        # The y axis ticker is set in above in this function: self._scope_data.vertical_axis.setRange
-        # self.RANGE_MIN=b_min*1.2 
-        # self.RANGE_MAX=b_min*1.2
-        # self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
+            # self.y = floatdata[0, :]
+            # if twoChannels:
+            #     self.y2 = floatdata[1, :]
+            # else:
+            #     self.y2 = None
 
 
+            # sp1n = zeros(self.fft_size, dtype=float64)
+            # sp2n = zeros(self.fft_size, dtype=float64)
+            # sp1n = self.proc.analyzelive(floatdata[0, :])
+            # if twoChannels:
+            #     # second channel for comparison
+            #     sp2n = self.proc.analyzelive(floatdata[1, :])
 
-        scaled_a=a/self.buffersize
+            # if twoChannels:
+            #     dB_spectrogram =  self.log_spectrogram(sp1n)
+            #     dB_spectrogram2= self.log_spectrogram(sp2n)
+            # else:
+            #     dB_spectrogram = self.log_spectrogram(sp1n) 
 
-        range_min=self.RANGE_MIN #the minimum value that the target signal can reach at target frequency
-        range_max=self.RANGE_MAX
+        ###########################################################################
+            self.freq1=self.frequency1 # frequency I am interested in to extract fft amp ####
+            self.freq2=self.frequency2                                                   ####
+        ###########################################################################
+            self.freq_idx1=(abs(self.freq-self.freq1)).argmin()
+            self.freq_idx2=(abs(self.freq-self.freq2)).argmin()
+            #check self.freq[self.freq_idx1] , see if it is close to 1000
 
-        range_middle=(range_min+range_max)/2
-        range_length=range_max-range_min
+            data=sp1n[self.freq_idx1]
+            data=self.log_spectrogram(data)
+            
 
-        b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
+            self.buff0=self.buff1
+            self.buff1[-1]=data
+            self.buff1[:-1]=self.buff0[1:]
+            # for i in range(len(self.buff1)-1):
+            #     self.buff1[i]=self.buff0[i+1]
 
-        scaled_b=1-(b+1)/2.  #turn scaled_b into the range (1,0)
-
-        # Design the Butterworth filter using 
-        # signal.butter and output='sos'
-        # fs = self.buffersize
-        # sos = signal.butter(3, 100, 'lp', fs=3000, output='sos') 
-        # #https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
-
-        # # Filter the signal by the filter using signal.sosfilt
-        # # Use signal.sosfiltfilt to get output inphase with input
-        # filtered = signal.sosfiltfilt(sos, scaled_b)
-        # self._curve.setData(scaled_a, filtered)
-
-
-        self._curve.setData(scaled_a, scaled_b)
-#####################################################
-        if twoChannels:
-            data2=sp2n[self.freq_idx2]
-            data2=self.log_spectrogram(data2)
-
-            self.buff2=self.buff3
-            self.buff3[-1]=data2
-            # for i in range(len(self.buff3)-1):
-            #     self.buff3[i]=self.buff2[i+1]
-            self.buff3[:-1]=self.buff2[1:]
-
-            b=self.buff3
+            b=self.buff1
             a=arange(self.buffersize)
+            
+            # b_min=min(b)
+            # b_max=max(b)
+            
+            #Kingson: trying to plot in autoscale in y axis. 
+            # The y axis ticker is set in above in this function: self._scope_data.vertical_axis.setRange
+            # self.RANGE_MIN=b_min*1.2 
+            # self.RANGE_MAX=b_min*1.2
+            # self._scope_data.vertical_axis.setRange(1000*self.RANGE_MIN, 1000*self.RANGE_MAX)# Make the unit to be mV
+
+
 
             scaled_a=a/self.buffersize
 
-            b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
-            scaled_b=1-(b+1)/2.
+            range_min=self.RANGE_MIN #the minimum value that the target signal can reach at target frequency
+            range_max=self.RANGE_MAX
 
-            self._curve_2.setData(scaled_a, scaled_b)
+            range_middle=(range_min+range_max)/2
+            range_length=range_max-range_min
+
+            b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
+
+            scaled_b=1-(b+1)/2.  #turn scaled_b into the range (1,0)
+
+            # Design the Butterworth filter using 
+            # signal.butter and output='sos'
+            # fs = self.buffersize
+            # sos = signal.butter(3, 100, 'lp', fs=3000, output='sos') 
+            # #https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+
+            # # Filter the signal by the filter using signal.sosfilt
+            # # Use signal.sosfiltfilt to get output inphase with input
+            # filtered = signal.sosfiltfilt(sos, scaled_b)
+            # self._curve.setData(scaled_a, filtered)
+
+
+            self._curve.setData(scaled_a, scaled_b)
+#####################################################
+            if twoChannels:
+                data2=sp2n[self.freq_idx2]
+                data2=self.log_spectrogram(data2)
+
+                self.buff2=self.buff3
+                self.buff3[-1]=data2
+                # for i in range(len(self.buff3)-1):
+                #     self.buff3[i]=self.buff2[i+1]
+                self.buff3[:-1]=self.buff2[1:]
+
+                b=self.buff3
+                a=arange(self.buffersize)
+
+                scaled_a=a/self.buffersize
+
+                b=(b-range_middle)/(range_length/2)  #turn b into the range (-1, 1)
+                scaled_b=1-(b+1)/2.
+
+                self._curve_2.setData(scaled_a, scaled_b)
 
             # filtered = signal.sosfiltfilt(sos, scaled_b)
             # self._curve_2.setData(scaled_a, filtered)
