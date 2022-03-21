@@ -78,7 +78,7 @@ class Scope_Widget1(QtWidgets.QWidget):
 
         self._scope_data.vertical_axis.name = "FFT amplitude (mV)"
         self._scope_data.vertical_axis.setTrackerFormatter(lambda x: "%#.3g" % (x))
-        self._scope_data.horizontal_axis.name = "Time (s)"
+        self._scope_data.horizontal_axis.name = "FFT points"
         self._scope_data.horizontal_axis.setTrackerFormatter(lambda x: "%#.3g s" % (x))
 
         self.setObjectName("Scope_Widget")
@@ -115,7 +115,7 @@ class Scope_Widget1(QtWidgets.QWidget):
         self.fft_size = 2 ** DEFAULT_FFT_SIZE * 32 #8192
 
 
-        timerange =  30
+        timerange =  1000  # Here in this code is actually the fft points of the fft buffer
 
         self.set_timerange(timerange)
         self.proc.set_fftsize(self.fft_size)
@@ -126,7 +126,7 @@ class Scope_Widget1(QtWidgets.QWidget):
         # self.response_time = DEFAULT_RESPONSE_TIME
         self.freq = self.proc.get_freq_scale()
 
-        self.buffersize=3000 #how many fft points to save
+        self.buffersize=1000 #how many fft points to save
         self.buff1=zeros(self.buffersize)
         self.buff2=zeros(self.buffersize)
         self.buff0=zeros(self.buffersize)

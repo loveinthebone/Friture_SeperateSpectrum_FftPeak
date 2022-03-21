@@ -159,7 +159,7 @@ class Spectrum_Widget(QtWidgets.QWidget):
             self.w.shape = self.freq.shape
 
             if self.dual_channels and floatdata.shape[0] > 1:
-                dB_spectrogram = self.log_spectrogram(sp2) - self.log_spectrogram(sp1)
+                dB_spectrogram = self.log_spectrogram(sp2) + self.w
             else:
                 dB_spectrogram = self.log_spectrogram(sp1) + self.w
 
@@ -298,8 +298,12 @@ class Spectrum_Widget(QtWidgets.QWidget):
     def setdualchannels(self, dual_enabled):
         self.dual_channels = dual_enabled
         if dual_enabled:
-            self.PlotZoneSpect.set_peaks_enabled(False)
-            self.PlotZoneSpect.set_baseline_dataUnits(0.)
+            # self.PlotZoneSpect.set_peaks_enabled(False)
+            # self.PlotZoneSpect.set_baseline_dataUnits(0.)
+
+            self.PlotZoneSpect.set_peaks_enabled(True)
+            self.PlotZoneSpect.set_baseline_displayUnits(0.)
+
         else:
             self.PlotZoneSpect.set_peaks_enabled(True)
             self.PlotZoneSpect.set_baseline_displayUnits(0.)

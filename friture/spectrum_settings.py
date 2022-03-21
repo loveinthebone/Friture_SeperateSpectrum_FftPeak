@@ -49,8 +49,8 @@ class Spectrum_Settings_Dialog(QtWidgets.QDialog):
 
         self.comboBox_dual_channel = QtWidgets.QComboBox(self)
         self.comboBox_dual_channel.setObjectName("dual")
-        self.comboBox_dual_channel.addItem("Single-channel")
-        self.comboBox_dual_channel.addItem("Dual-channel")
+        self.comboBox_dual_channel.addItem("Channel 1")
+        self.comboBox_dual_channel.addItem("Channel 2")
         self.comboBox_dual_channel.setCurrentIndex(0)
 
         self.comboBox_fftsize = QtWidgets.QComboBox(self)
