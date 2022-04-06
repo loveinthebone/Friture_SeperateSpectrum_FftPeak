@@ -76,7 +76,7 @@ class Scope_Widget1(QtWidgets.QWidget):
         self._curve_2 = Curve()
         # self._curve.name = "Ch2 at "+str(DEFAULT_FREQUENCY2)
 
-        self._scope_data.vertical_axis.name = "FFT amplitude (mV)"
+        self._scope_data.vertical_axis.name = "FFT amplitude (dB)"
         self._scope_data.vertical_axis.setTrackerFormatter(lambda x: "%#.3g" % (x))
         self._scope_data.horizontal_axis.name = "FFT points"
         self._scope_data.horizontal_axis.setTrackerFormatter(lambda x: "%#.3g s" % (x))
