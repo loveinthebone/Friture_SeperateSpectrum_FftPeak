@@ -19,5 +19,5 @@ See the `project homepage`_ for screenshots and more information.
 
 
 A note for this branch:
-In this branch, you can display the FFT spectrum seperately by choosing the right channel in the dock setting. 
+In this fork, you can display the FFT spectrum seperately by choosing the right channel in the dock setting. 
 I also add a dock called "FFT Scope IAH", where you can choose to plot the FFT amplitude at specific frequency at each channel. "IAH" represents International Audio HOlding, which is the company I am working in.
