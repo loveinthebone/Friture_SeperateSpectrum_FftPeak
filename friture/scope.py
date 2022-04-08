@@ -81,9 +81,9 @@ class Scope_Widget(QtWidgets.QWidget):
 
         self.set_timerange(DEFAULT_TIMERANGE)
 
-        self.time = zeros(10)
-        self.y = zeros(10)
-        self.y2 = zeros(10)
+        # self.time = zeros(10)
+        # self.y = zeros(10)
+        # self.y2 = zeros(10)
         # self.Bridge=bridge()
 
         # self.fft1=Spectrum_Widget
@@ -106,6 +106,9 @@ class Scope_Widget(QtWidgets.QWidget):
         twoChannels = False
         if floatdata.shape[0] > 1:
             twoChannels = True
+        else:
+            print("something")
+
 
         if twoChannels and len(self._scope_data.plot_items) == 1:
             self._scope_data.add_plot_item(self._curve_2)
@@ -119,10 +122,11 @@ class Scope_Widget(QtWidgets.QWidget):
         trig_search_stop = -width // 2
         triggerdata = triggerdata[trig_search_start: trig_search_stop]
 
-        trigger_level = floatdata.max() * 2. / 3.
+        trigger_level = triggerdata.max() * 2. / 3.
         trigger_pos = where((triggerdata[:-1] < trigger_level) * (triggerdata[1:] >= trigger_level))[0]
 
         if len(trigger_pos) == 0:
+            # print("trigger_pos is none")
             return
 
         if len(trigger_pos) > 0:
@@ -160,12 +164,12 @@ class Scope_Widget(QtWidgets.QWidget):
         """
 
         scaled_t = (self.time * 1e3 + self.timerange/2.) / self.timerange  #make sure in the end the x axis is going from 0 to 1
-        scaled_y = 1. - (self.y + 1) / 2.  # if the range of y is (-1:1),make sure in the end, the y axis range is (2:0)
+        scaled_y = 1. - (self.y*2.69 + 1) / 2.  # if the range of y is (-1:1),make sure in the end, the y axis range is (2:0)
         self._curve.setData(scaled_t, scaled_y)
        
 
         if self.y2 is not None:
-            scaled_y2 = 1. - (self.y2 + 1) / 2.
+            scaled_y2 = 1. - (self.y2*2.69 + 1) / 2.
             self._curve_2.setData(scaled_t, scaled_y2)
 
 
