@@ -1,9 +1,9 @@
 function color(i){
     if (i == 0) {
-        return "red";
+        return "blue";
     }
     if (i == 1) {
-        return "blue";
+        return "red";
     }
 
     return "black";
